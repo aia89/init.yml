@@ -1,0 +1,36 @@
+---
+- hosts: all
+  connection: ssh
+  become: yes
+  become_method: sudo
+  tasks: 
+    - name: install EPEL repo
+      yum: name=http://software1.file.alimmdn.com/Linux/epel-release-6-8.noarch.rpm state=installed
+
+    - name: install some tools
+      yum: name={{ item }} state=present
+      with_items:
+        - lrzsz
+        - wget
+        - ntpdate
+        - unzip
+        - vim
+        - libselinux-python
+
+    - name: add ntpserver and update system time
+      shell: /usr/sbin/ntpdate cn.pool.ntp.org
+
+    - name: add cron to sync the system time every minutes
+      cron: name=ntpdate minute=*/30 hour=* day=* month=* weekday=* job="/usr/sbin/ntpdate cn.pool.ntp.org > /dev/null 2>&1"
+
+    - name: disabled selinux
+      selinux: state=disabled
+
+    - name: stop iptables
+      service: enabled=false name=iptables state=stopped
+
+    - name: disabled ssh dns
+      lineinfile: dest=/etc/ssh/sshd_config regexp=^#UseDNS line='UseDNS no'
+      notify:
+    - name: ssh
+      service: name=sshd state=restarted enabled=yes
